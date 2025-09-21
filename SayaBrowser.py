@@ -189,7 +189,7 @@ class DanbooruViewer:
                 url = "https://danbooru.donmai.us/posts.json"
                 params = {
                     "tags": "saya_no_uta",
-                    "limit": 1000,  # Get multiple posts to cache
+                    "limit": 100,  # Get multiple posts to cache
                     "random": "true",
                 }
                 auth = (self.username, self.api_key)
