@@ -1,5 +1,7 @@
+#!/usr/bin/env /home/gale/Desktop/Programmi/venv/bin/python3.13
+
 import tkinter as tk
-from tkinter import ttk, messagebox, filedialog
+from tkinter import ttk, messagebox, filedialog, simpledialog
 import requests
 from PIL import Image, ImageTk
 import io
@@ -12,12 +14,136 @@ import json
 from rich import print_json
 
 
+class RenameDialog:
+    def __init__(self, parent, default_name):
+        self.result = None
+        self.dialog = tk.Toplevel(parent)
+        self.dialog.title("Rename Image")
+        self.dialog.geometry("400x150")
+        self.dialog.configure(bg="#1a1a2e")
+        self.dialog.resizable(False, False)
+        
+        # Center the dialog
+        self.dialog.transient(parent)
+        self.dialog.grab_set()
+        
+        # Colors matching the main theme
+        bg_color = "#1a1a2e"
+        fg_color = "#eee"
+        button_color = "#0f3460"
+        button_hover = "#62CBBF"
+        
+        # Main frame
+        main_frame = tk.Frame(self.dialog, bg=bg_color)
+        main_frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=20)
+        
+        # Label
+        label = tk.Label(
+            main_frame,
+            text="Enter new filename:",
+            font=("Segoe UI", 11),
+            bg=bg_color,
+            fg=fg_color
+        )
+        label.pack(pady=(0, 10))
+        
+        # Entry
+        self.entry = tk.Entry(
+            main_frame,
+            font=("Segoe UI", 10),
+            bg="#16213e",
+            fg=fg_color,
+            insertbackground=fg_color,
+            bd=1,
+            relief=tk.SOLID
+        )
+        self.entry.pack(fill=tk.X, pady=(0, 15))
+        self.entry.insert(0, default_name)
+        self.entry.select_range(0, len(default_name.rsplit('.', 1)[0]))  # Select filename without extension
+        self.entry.focus()
+        
+        # Button frame
+        button_frame = tk.Frame(main_frame, bg=bg_color)
+        button_frame.pack(fill=tk.X)
+        
+        # OK button
+        ok_btn = tk.Button(
+            button_frame,
+            text="OK",
+            font=("Segoe UI", 10, "bold"),
+            bg=button_color,
+            fg=fg_color,
+            activebackground=button_hover,
+            activeforeground=fg_color,
+            padx=20,
+            pady=5,
+            bd=0,
+            cursor="hand2",
+            command=self.ok_clicked
+        )
+        ok_btn.pack(side=tk.RIGHT, padx=(5, 0))
+        
+        # Cancel button
+        cancel_btn = tk.Button(
+            button_frame,
+            text="Cancel",
+            font=("Segoe UI", 10),
+            bg="#2d2d44",
+            fg="#aaa",
+            activebackground="#3d3d54",
+            activeforeground=fg_color,
+            padx=20,
+            pady=5,
+            bd=0,
+            cursor="hand2",
+            command=self.cancel_clicked
+        )
+        cancel_btn.pack(side=tk.RIGHT)
+        
+        # Bind Enter and Escape
+        self.dialog.bind('<Return>', lambda e: self.ok_clicked())
+        self.dialog.bind('<Escape>', lambda e: self.cancel_clicked())
+        
+        # Hover effects
+        def on_hover_ok(entering):
+            if entering:
+                ok_btn.configure(bg=button_hover)
+            else:
+                ok_btn.configure(bg=button_color)
+                
+        def on_hover_cancel(entering):
+            if entering:
+                cancel_btn.configure(bg="#3d3d54")
+            else:
+                cancel_btn.configure(bg="#2d2d44")
+        
+        ok_btn.bind("<Enter>", lambda e: on_hover_ok(True))
+        ok_btn.bind("<Leave>", lambda e: on_hover_ok(False))
+        cancel_btn.bind("<Enter>", lambda e: on_hover_cancel(True))
+        cancel_btn.bind("<Leave>", lambda e: on_hover_cancel(False))
+        
+    def ok_clicked(self):
+        filename = self.entry.get().strip()
+        if filename:
+            self.result = filename
+        self.dialog.destroy()
+        
+    def cancel_clicked(self):
+        self.result = None
+        self.dialog.destroy()
+
+
 class DanbooruViewer:
     def __init__(self, root):
         self.root = root
         self.root.title("✦ Danbooru Saya Viewer ✦")
         self.root.geometry("900x700")
 
+        try:
+            self.root.iconphoto(False, tk.PhotoImage(file="/home/gale/Desktop/Programmi/SayaBrowser/saya_icon.png"))
+        except Exception as e:
+            print(f"Error loading icon: {e}")
+        
         # Configure dark theme colors
         self.bg_color = "#1a1a2e"
         self.fg_color = "#eee"
@@ -30,7 +156,7 @@ class DanbooruViewer:
 
         # API credentials - User needs to fill these
         self.username = "username"  # Replace with your username
-        self.api_key = "api_key"  # Replace with your API key
+        self.api_key = "api_key"    # Replace with your API key
 
         # State variables
         self.current_image_url = None
@@ -43,7 +169,7 @@ class DanbooruViewer:
         self.setup_gui()
 
         # Create Downloads folder if it doesn't exist
-        self.downloads_path = Path.cwd() / "Downloads"
+        self.downloads_path = Path.cwd() / "/home/gale/Desktop/Programmi/SayaBrowser/Downloads"
         self.downloads_path.mkdir(exist_ok=True)
 
     def setup_gui(self):
@@ -398,19 +524,50 @@ class DanbooruViewer:
         except Exception as e:
             self.show_error(f"Failed to show full resolution: {str(e)}")
 
+    def get_default_filename(self):
+        """Generate a default filename for the current image"""
+        if not self.current_image_url:
+            return "danbooru_image.jpg"
+            
+        # Get filename from URL
+        parsed_url = urlparse(self.current_image_url)
+        filename = os.path.basename(parsed_url.path)
+
+        if not filename:
+            # Fallback to ID-based filename
+            post_id = self.current_post.get('id', 'unknown')
+            file_ext = self.current_post.get('file_ext', 'jpg')
+            filename = f"danbooru_{post_id}.{file_ext}"
+
+        return filename
+
     def download_image(self):
         if not self.current_image_data or not self.current_image_url:
             return
 
         try:
-            # Get filename from URL
-            parsed_url = urlparse(self.current_image_url)
-            filename = os.path.basename(parsed_url.path)
-
+            # Get default filename
+            default_filename = self.get_default_filename()
+            
+            # Show rename dialog
+            rename_dialog = RenameDialog(self.root, default_filename)
+            self.root.wait_window(rename_dialog.dialog)
+            
+            # Check if user cancelled or provided empty name
+            if not rename_dialog.result:
+                return
+                
+            filename = rename_dialog.result.strip()
             if not filename:
-                filename = (
-                    f"danbooru_image_{self.current_post.get('id', 'unknown')}.jpg"
-                )
+                return
+
+            # Ensure filename has an extension
+            if '.' not in filename:
+                # Get extension from original filename or default to jpg
+                original_ext = os.path.splitext(default_filename)[1]
+                if not original_ext:
+                    original_ext = '.jpg'
+                filename += original_ext
 
             # Save to Downloads folder
             filepath = self.downloads_path / filename
