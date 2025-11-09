@@ -164,7 +164,7 @@ class DanbooruViewer:
         self.setup_gui()
 
         # Create Downloads folder if it doesn't exist
-        self.downloads_path = Path.cwd() / "/home/gale/Desktop/Programmi/SayaBrowser/Downloads"
+        self.downloads_path = Path.cwd() / "./Downloads"
         self.downloads_path.mkdir(exist_ok=True)
 
     def setup_gui(self):
