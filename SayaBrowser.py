@@ -138,11 +138,6 @@ class DanbooruViewer:
         self.root = root
         self.root.title("✦ Danbooru Saya Viewer ✦")
         self.root.geometry("900x700")
-
-        try:
-            self.root.iconphoto(False, tk.PhotoImage(file="/home/gale/Desktop/Programmi/SayaBrowser/saya_icon.png"))
-        except Exception as e:
-            print(f"Error loading icon: {e}")
         
         # Configure dark theme colors
         self.bg_color = "#1a1a2e"
